@@ -1,0 +1,11 @@
+[package]
+name       = "long"
+version    = "0.1.0"
+authors    = ["Kenis <kenisdsg1108@gmail.com>"]
+repository = "https://github.com/kenis1108/long"
+edition    = "2024"
+
+[dependencies]
+clap       = "4.5.39"
+owo-colors = "4.2.1"
+toml       = "0.8.22"

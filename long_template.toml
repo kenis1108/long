@@ -1,0 +1,56 @@
+[env_var]
+# 参数配置格式
+# 1. 可以直接写字符串
+# 2. 可以写成表格形式
+#    value: 环境变量的值, 不要在里面出现 ： ； 这两是linux/windows的分隔符；一次写入多个可以使用数组
+#    splice_before: 是否拼接到已有的环境变量之前，默认 false
+#    splice_after: 是否拼接到已有的环境变量之后，默认 false
+EDITOR = "nvim"
+SHELL  = { value = "nushell" }
+PATH   = { value = "/usr/local/bin", splice_before = true }
+PATH1   = { value = "/usr/local/bin", splice_after = true }
+PATH2   = { value = ["/usr/local/bin", "/usr/bin"], splice_before = true }
+PATH3   = { value = ["/usr/local/bin", "/usr/bin"], splice_after = true }
+PATH4   = { value = ["/usr/local/bin", "/usr/bin"] }
+
+[alias]
+# 各种 shell 的 alias 的效果，复杂逻辑请使用函数
+# 进行简单文本替换，能拼接alias后面的参数，不同shell语法有点差异; eg. alias ll="ls -l" 然后运行 ll ~/foo 会变成 ls -l ~/foo;
+# 特别注意powershell 的 alias 功能过于简单。Set-Alias 只能接受命令名，不接受参数。Set-Alias -Name vim -Value "vim -u ~/.config/vim/init.vim" ❌
+# 所以本程序会将 powershell 的 alias 直接定义成函数。eg. function vim { & vim -u ~/.config/vim/init.vim @args } ✔️
+
+# alias 配置格式
+# 1. 可以直接写字符串
+# 2. 可以写成表格形式
+#    cmd: 命令, 单个使用字符串，多个使用数组。第二个元素开始会作为参数传递给前面的命令，在不同shell中会有不同的表现，bash/zsh/powershell 为$()； fish/nushell 为();
+#    system: 适用的操作系统，单个使用字符串，多个使用数组。支持 linux、darwin、windows，不写则适用于所有系统
+#    shell: 适用的 shell，单个使用字符串，多个使用数组。支持 bash、zsh、fish、powershell、nushell，不写则适用于所有 shell
+
+# chezmoi 
+ca = "chezmoi apply --force"
+ce = "chezmoi edit --apply"
+cc = { cmd = ["cd", "chezmoi source-path"] } # bash/zsh/powershell: cd $(chezmoi source-path) # fish/nushell: cd (chezmoi source-path)
+
+
+# Replace ls with eza
+ls   = { cmd = "eza -al --color=always --group-directories-first --icons", system = "linux" }
+la   = { cmd = "eza -a --color=always --group-directories-first --icons", system = "linux" }
+ll   = { cmd = "eza -l --color=always --group-directories-first --icons", system = "linux" }
+lt   = { cmd = "eza -aT --color=always --group-directories-first --icons", system = "linux" }
+"l." = { cmd = "eza -ald --color=always --group-directories-first --icons .*", system = "linux" }
+
+# grep
+grep = "grep --color=auto"
+
+# lazygit
+lg = "lazygit"
+
+# vim
+vim = "vim -u ~/.config/vim/init.vim"
+
+# zellij
+zj = { cmd = "zellij", system = "linux" }
+
+# scoop
+sip = { cmd = ["scoop install", "scoop search | awk '{print $1}' | fzf"], system = "windows" }
+sup = { cmd = ["scoop uninstall", "scoop list | awk '{print $1}' | fzf"], system = "windows" }

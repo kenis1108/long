@@ -1,0 +1,79 @@
+name: Release Rust Binary
+
+on:
+  push:
+    tags:
+      - 'v*'  # 如 v1.0.0
+
+env:
+  PROJECT_NAME: long
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            ext: tar.gz
+          - os: windows-latest
+            target: windows
+            ext: zip
+          - os: macos-latest
+            target: macos
+            ext: tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Install 7zip on Windows
+        if: matrix.os == 'windows-latest'
+        run: choco install 7zip -y
+        shell: powershell
+
+      - name: Package binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          cd dist
+
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp ../target/release/${PROJECT_NAME}.exe ${PROJECT_NAME}.exe
+            7z a ${PROJECT_NAME}-${{ matrix.target }}.${{ matrix.ext }} ${PROJECT_NAME}.exe
+          else
+            cp ../target/release/${PROJECT_NAME} ${PROJECT_NAME}
+            tar -czf ${PROJECT_NAME}-${{ matrix.target }}.${{ matrix.ext }} ${PROJECT_NAME}
+          fi
+
+      - name: Generate SHA256 hash
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          $file = "dist/${{ env.PROJECT_NAME }}-windows.zip"
+          $hash = (Get-FileHash -Algorithm SHA256 $file).Hash
+          $hash | Out-File "$file.sha256" -Encoding ascii
+      - name: Generate SHA256 hash (Linux/Mac)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          cd dist
+          FILE="${PROJECT_NAME}-${{ matrix.target }}.${{ matrix.ext }}"
+          shasum -a 256 "$FILE" > "$FILE.sha256"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/long-${{ matrix.target }}.${{ matrix.ext }}
+            dist/long-${{ matrix.target }}.${{ matrix.ext }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
