@@ -4,6 +4,18 @@ on:
   push:
     tags:
       - 'v*'  # 如 v1.0.0
+  workflow_dispatch:  # 添加手动触发
+    inputs:
+      target_os:
+        description: 'Target OS (linux/windows/macos/all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - linux
+          - windows
+          - macos
+          - all
 
 env:
   PROJECT_NAME: long
@@ -12,19 +24,10 @@ jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    needs: setup
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            target: linux
-            ext: tar.gz
-          - os: windows-latest
-            target: windows
-            ext: zip
-          - os: macos-latest
-            target: macos
-            ext: tar.gz
-
+        include: ${{ fromJSON(needs.setup.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,48 +35,69 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build release
-        run: cargo build --release
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
 
-      - name: Install 7zip on Windows
-        if: matrix.os == 'windows-latest'
-        run: choco install 7zip -y
-        shell: powershell
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package binary
         shell: bash
         run: |
           mkdir -p dist
-          cd dist
-
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp ../target/release/${PROJECT_NAME}.exe ${PROJECT_NAME}.exe
-            7z a ${PROJECT_NAME}-${{ matrix.target }}.${{ matrix.ext }} ${PROJECT_NAME}.exe
+            cp target/${{ matrix.target }}/release/${PROJECT_NAME}.exe dist/${PROJECT_NAME}-${{ matrix.target }}.exe
           else
-            cp ../target/release/${PROJECT_NAME} ${PROJECT_NAME}
-            tar -czf ${PROJECT_NAME}-${{ matrix.target }}.${{ matrix.ext }} ${PROJECT_NAME}
+            cp target/${{ matrix.target }}/release/${PROJECT_NAME} dist/${PROJECT_NAME}-${{ matrix.target }}
           fi
 
-      - name: Generate SHA256 hash
-        if: matrix.os == 'windows-latest'
-        shell: powershell
-        run: |
-          $file = "dist/${{ env.PROJECT_NAME }}-windows.zip"
-          $hash = (Get-FileHash -Algorithm SHA256 $file).Hash
-          $hash | Out-File "$file.sha256" -Encoding ascii
-      - name: Generate SHA256 hash (Linux/Mac)
-        if: matrix.os != 'windows-latest'
-        shell: bash
-        run: |
-          cd dist
-          FILE="${PROJECT_NAME}-${{ matrix.target }}.${{ matrix.ext }}"
-          shasum -a 256 "$FILE" > "$FILE.sha256"
-
       - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/long-${{ matrix.target }}.${{ matrix.ext }}
-            dist/long-${{ matrix.target }}.${{ matrix.ext }}.sha256
+          files:
+            dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: long-${{ matrix.target_short }}
+          path: dist/
+
+      - name: Notice for manual run
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "[long] 手动触发仅编译产物，不上传 Release。请通过 tag push 发布正式 Release。"
+
+      - name: List dist contents
+        run: ls -l dist
+
+  # 添加 setup 作业来处理手动触发时的矩阵生成
+  setup:
+    name: Determine build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          # 默认全平台构建矩阵（多行->单行JSON）
+          MATRIX=$(cat <<EOF
+          [
+            {"os": "ubuntu-latest", "target": "x86_64-unknown-linux-gnu", "ext": "", "target_short": "linux"},
+            {"os": "windows-latest", "target": "x86_64-pc-windows-msvc", "ext": ".exe", "target_short": "windows"},
+            {"os": "macos-latest", "target": "x86_64-apple-darwin", "ext": "", "target_short": "macos"}
+          ]
+          EOF
+          )
+          MATRIX=$(echo "$MATRIX" | jq -c .)
+
+          # 如果是手动触发且不是全平台
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.target_os }}" != "all" ]]; then
+            FILTERED=$(echo "$MATRIX" | jq -c '[.[] | select(.target_short == "'${{ inputs.target_os }}'")]')
+            echo "matrix=$FILTERED" >> $GITHUB_OUTPUT
+          else
+            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          fi
