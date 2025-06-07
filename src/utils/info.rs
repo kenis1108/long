@@ -58,7 +58,7 @@ pub fn print_command(shell: &str, config_path: Option<&str>) {
     }
     "nushell" => {
       command = format!(
-        "Command: \ndo {{ long --shell {} {} --no_output }} | save --force tmp.nu\nsource tmp.nu\nrm tmp.nu",
+        "Command: \nmkdir ($nu.data-dir | path join \"vendor/autoload\")\nlong --shell {} {}  --no_output | save -f ($nu.data-dir | path join \"vendor/autoload/long.nu\")",
         shell, config_path_str
       );
     }

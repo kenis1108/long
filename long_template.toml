@@ -46,7 +46,7 @@ grep = "grep --color=auto"
 lg = "lazygit"
 
 # vim
-vim = "vim -u ~/.config/vim/init.vim"
+vim = "vim -u ~/.config/vim/init.vim" # TODO: windows下会死循环
 
 # zellij
 zj = { cmd = "zellij", system = "linux" }
