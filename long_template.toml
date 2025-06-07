@@ -46,7 +46,8 @@ grep = "grep --color=auto"
 lg = "lazygit"
 
 # vim
-vim = "vim -u ~/.config/vim/init.vim" # TODO: windows下会死循环
+# vim = "vim -u ~/.config/vim/init.vim" # NOTE: powershell 定义函数名和程序名相同会死循环 必须加上 .exe "vim.exe -u ~/.config/vim/init.vim" 
+vi = "vim.exe -u ~/.config/vim/init.vim"
 
 # zellij
 zj = { cmd = "zellij", system = "linux" }
