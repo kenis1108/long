@@ -9,6 +9,20 @@ Long is a command-line tool that can automatically generate alias and environmen
 - Supports concatenating/overwriting environment variables
 - Suitable for dotfiles management, automated configuration, and cross-platform shell users
 
+
+> **Note:** Currently, only the Scoop package manager on Windows is supported.  
+> For other platforms, please download the executable manually from the [Releases](https://github.com/kenis1108/long/releases) page.
+
+
+## Installation (via Scoop)
+
+If you are using [Scoop](https://scoop.sh/) on Windows, you can install Long with the following commands:
+
+```powershell
+scoop bucket add kenis-bucket https://github.com/kenis1108/scoopbucket
+scoop install long
+```
+
 ## Usage
 
 Generate shell alias and env config from a TOML file.
